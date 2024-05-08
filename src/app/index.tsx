@@ -3,18 +3,35 @@ import { View, Image, Alert, StatusBar } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/styles/colors';
 import { Button } from '@/components/Button/Button';
-import { Link, router } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 import { useState } from 'react';
+import { api } from '@/server/api';
+import { useBadgeStore } from '@/store/badge-store';
 
 export default function Home() {
   const [eventCode, setEventCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { badgeData, saveBadgeData } = useBadgeStore();
 
-  function handleAccessCredential() {
-    if (!eventCode.trim()) {
-      return Alert.alert('Credencial', 'Informe o código do evento.');
+  async function handleAccessCredential() {
+    try {
+      if (!eventCode.trim()) {
+        return Alert.alert('Credencial', 'Informe o código do evento.');
+      }
+
+      setIsLoading(true);
+
+      const { data } = await api.get(`attendees/${eventCode}/badge`);
+      saveBadgeData(data?.badge);
+    } catch (err) {
+      console.log(err);
+      setIsLoading(false);
+      Alert.alert('Credencial', 'Código do evento não encontrado!');
     }
+  }
 
-    router.navigate('/ticket');
+  if (badgeData?.checkInUrl) {
+    return <Redirect href="/ticket" />;
   }
 
   return (
@@ -40,7 +57,11 @@ export default function Home() {
         </Input>
       </View>
 
-      <Button title="Acessar credencial" onPress={handleAccessCredential} />
+      <Button
+        title="Acessar credencial"
+        onPress={handleAccessCredential}
+        isLoading={isLoading}
+      />
 
       <Link
         href="/register"
