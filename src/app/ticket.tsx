@@ -3,6 +3,7 @@ import {
   Alert,
   Modal,
   ScrollView,
+  Share,
   StatusBar,
   Text,
   TouchableOpacity,
@@ -15,10 +16,13 @@ import { colors } from '@/styles/colors';
 import { Button } from '@/components/Button/Button';
 import * as ImagePicker from 'expo-image-picker';
 import { Qrcode } from '@/components/Qrcode/Qrcode';
+import { useBadgeStore } from '@/store/badge-store';
+import { Redirect } from 'expo-router';
+import { MotiView } from 'moti';
 
 export default function Ticket() {
-  const [image, setImage] = useState('');
   const [expandQRCode, setExpandQRCode] = useState(false);
+  const { badgeData, removeBadgeData, updateAvatar } = useBadgeStore();
 
   async function handleSelectImage() {
     try {
@@ -29,12 +33,37 @@ export default function Ticket() {
       });
 
       if (results.assets) {
-        setImage(results.assets[0].uri);
+        updateAvatar(results.assets[0].uri);
       }
     } catch (error) {
       console.log(error);
       Alert.alert('Foto', 'Não foi possível selecionar a imagem.');
     }
+  }
+
+  async function handleShareTicket() {
+    try {
+      if (badgeData?.checkInUrl) {
+        await Share.share({
+          message: badgeData.checkInUrl,
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Compartilhar', 'Não foi possível compartilhar o ingresso.');
+    }
+  }
+
+  function handleRemoveBadge() {
+    Alert.alert(
+      'Remover Ingresso',
+      'Tem certeza que deseja remover seu ingresso?',
+      [{ text: 'Sim', onPress: () => removeBadgeData() }, { text: 'Não' }]
+    );
+  }
+
+  if (!badgeData) {
+    return <Redirect href="/" />;
   }
 
   return (
@@ -48,29 +77,47 @@ export default function Ticket() {
         showsVerticalScrollIndicator={false}
       >
         <Credential
-          image={image}
+          data={badgeData}
           onChangeAvatar={handleSelectImage}
-          onShowQrcode={() => setExpandQRCode(true)}
+          onShowQRcode={() => setExpandQRCode(true)}
         />
 
-        <FontAwesome
-          style={{ alignSelf: 'center', marginVertical: 24 }}
-          name="angle-double-down"
-          size={24}
-          color={colors.gray[300]}
-        />
+        <MotiView
+          from={{
+            translateY: 0,
+          }}
+          animate={{
+            translateY: 10,
+          }}
+          transition={{
+            loop: true,
+            type: 'timing',
+            duration: 700,
+          }}
+        >
+          <FontAwesome
+            style={{ alignSelf: 'center', marginVertical: 24 }}
+            name="angle-double-down"
+            size={24}
+            color={colors.gray[300]}
+          />
+        </MotiView>
 
         <Text className="text-white font-bold text-2xl mt-4">
           Compartilhar credencial
         </Text>
 
         <Text className="text-white font-regular text-base mt-1 mb-6">
-          Mostre ao mundo que você vai participar do Unite Summit
+          Mostre ao mundo que você vai participar do {badgeData.eventTitle}!
         </Text>
 
-        <Button title="Compartilhar" />
+        <Button title="Compartilhar" onPress={handleShareTicket} />
 
-        <TouchableOpacity activeOpacity={0.7} className="mt-10">
+        <TouchableOpacity
+          activeOpacity={0.7}
+          className="mt-10"
+          onPress={handleRemoveBadge}
+        >
           <Text className="text-base text-white font-bold text-center">
             Remover Ingresso
           </Text>
@@ -83,7 +130,7 @@ export default function Ticket() {
             activeOpacity={0.7}
             onPress={() => setExpandQRCode(false)}
           >
-            <Qrcode size={300} value="test" />
+            <Qrcode size={300} value={badgeData.checkInUrl} />
             <Text className="text-orange-500 font-bold text-sm  text-center mt-10">
               Fechar QRCode
             </Text>
